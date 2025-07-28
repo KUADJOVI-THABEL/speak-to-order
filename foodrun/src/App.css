@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.bg-light-pink { background-color: #FFCCCC; }
+.bg-soft-red { background-color: #FF8080; }
+.bg-medium-red { background-color: #FF4B4B; }
+.bg-bright-red { background-color: #FF0000; }
+.bg-orange { background-color: #FF9F06; }
+.bg-pale-pink { background-color: #FFE9E9; }
+.bg-small-pink {
+  background-color: "#FF7E70";
+}
+.text-light-pink { color: #FFCCCC; }
+.text-soft-red { color: #FF8080; }
+.text-medium-red,
+.border-medium-red { color: #FF4B4B; }
+.text-bright-red { color: #FF0000; }
+.text-orange { color: #FF9F06; }
+.text-pale-pink { color: #FFE9E9; }
+
+body {
+  font-family: 'Nunito';
+  display: block;
+}

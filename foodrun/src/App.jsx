@@ -7,11 +7,14 @@ import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js'
 import { SPEAK_STATE_DONESPEAKING, SPEAK_STATE_INITIAL, SPEAK_STATE_SPEAKING, SpeakingStateConts } from './utils/SpeakingState';
 
 
+const SERVER_URL = "http://localhost:5000"
 // Global variables
 let record;
 let wavesurfer;
 
 
+const svgPlayBtn = `<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#000000" stroke-width="0.00024000000000000003"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path fill-rule="evenodd" clip-rule="evenodd" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22ZM10.6935 15.8458L15.4137 13.059C16.1954 12.5974 16.1954 11.4026 15.4137 10.941L10.6935 8.15419C9.93371 7.70561 9 8.28947 9 9.21316V14.7868C9 15.7105 9.93371 16.2944 10.6935 15.8458Z" fill="#FF4B4B"></path> </g></svg>`
+const svgPauseBtn = `<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="none"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22ZM9 9.5C9 8.67157 9.67157 8 10.5 8C11.3284 8 12 8.67157 12 9.5V14.5C12 15.3284 11.3284 16 10.5 16C9.67157 16 9 15.3284 9 14.5V9.5ZM13 9.5C13 8.67157 13.6716 8 14.5 8C15.3284 8 16 8.67157 16 9.5V14.5C16 15.3284 15.3284 16 14.5 16C13.6716 16 13 15.3284 13 14.5V9.5Z" fill="#FF4B4B"></path></g></svg>`;
 
 function MobileNavBarFixedInButtom() {
   return (
@@ -103,20 +106,87 @@ const createWaveSurfer = () => {
       url: recordedUrl,
     })
 
-    // Play/Pause button with icon
-    const playBtn = container.appendChild(document.createElement('button'))
-    playBtn.className = 'bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mr-2 flex items-center'
-    button.onclick = () => wavesurfer.playPause()
-    wavesurfer.on('pause', () => (button.textContent = 'Play'))
-    wavesurfer.on('play', () => (button.textContent = 'Pause'))
+    // Create a frame div to hold controls
+const frame = container.appendChild(document.createElement('div'))
+frame.className = 'flex items-center space-x-2 mt-2 justify-center'
 
-    // Download link
-    const link = container.appendChild(document.createElement('a'))
-    Object.assign(link, {
-      href: recordedUrl,
-      download: 'recording.' + blob.type.split(';')[0].split('/')[1] || 'webm',
-      textContent: 'Download recording',
-    })
+// Play/Pause button with icon (ghost style)
+const playBtn = document.createElement('button')
+playBtn.className = 'p-2 flex items-center border rounded bg-white shadow text-gray-700 border-gray-300 hover:border-light-red'
+
+// Insert icon (initially play icon)
+playBtn.innerHTML = `
+  ${svgPlayBtn}
+`
+
+playBtn.onclick = () => wavesurfer.playPause()
+
+wavesurfer.on('pause', () => {
+  playBtn.innerHTML = `
+      ${svgPlayBtn}
+  `
+})
+
+wavesurfer.on('play', () => {
+  playBtn.innerHTML = `
+     ${svgPauseBtn}
+  `
+})
+
+// Delete button with icon
+const deleteBtn = document.createElement('button')
+deleteBtn.className = 'p-2 flex items-center text-bright-red bg-white shadow rounded'
+deleteBtn.innerHTML = `
+  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+       viewBox="0 0 24 24" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M6 18L18 6M6 6l12 12" />
+  </svg>
+`
+deleteBtn.onclick = () => {
+  // Your delete logic here
+  // container.style.display = 'none'
+}
+
+// Append buttons
+frame.appendChild(deleteBtn)
+frame.appendChild(playBtn)
+
+// Submit button remains unchanged
+const submitBtn = document.createElement('button')
+submitBtn.className = 'py-2 px-4 w-full rounded  flex items-center justify-center bg-bright-red text-white'
+submitBtn.innerText = `Submit`
+submitBtn.onclick = () => {
+// send the audio to the server at /upload_audio
+const formData = new FormData();
+formData.append('audio_file', blob, 'recording.webm');
+
+fetch(`${SERVER_URL}/upload_audio`, {
+  method: 'POST',
+  body: formData,
+
+ 
+})
+  .then(response => response.json())
+  .then(data => {
+    console.log('Server response:', data);
+    // Optionally handle server response here
+  })
+  .catch(error => {
+    console.error('Error uploading audio:', error);
+  });
+  // Search , 
+}
+frame.appendChild(submitBtn)
+
+
+    // // Download link
+    // const link = container.appendChild(document.createElement('a'))
+    // Object.assign(link, {
+    //   href: recordedUrl,
+    //   download: 'recording.' + blob.type.split(';')[0].split('/')[1] || 'webm',
+    //   textContent: 'Download recording',
+    // })
   })
   // pauseButton.style.display = 'none'
   // recButton.textContent = 'Record'

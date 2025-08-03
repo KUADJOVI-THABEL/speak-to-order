@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import './App.css'
 
@@ -11,8 +12,16 @@ import { SPEAK_STATE_DONESPEAKING, SPEAK_STATE_INITIAL, SPEAK_STATE_SPEAKING, Sp
 import OrderOverall from './OrderOverall'
 import MenuList from './MenuList';
 import TopMenu from './TopMenu';
+import Searching from './Searching';
+import PopularMenu from './PopularMenu';
+import SpecialOffer from './SpecialOffer';
+import FoodList from './FoodList'
+import Thanks from './Thanks';
+import { SERVER_URL } from "./utils/constants";
 
-const SERVER_URL = "http://localhost:5000"
+import { useNavigate } from "react-router-dom";
+
+
 // Global variables
 let record;
 let wavesurfer;
@@ -22,14 +31,29 @@ const svgPlayBtn = `<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="
 const svgPauseBtn = `<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="none"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22ZM9 9.5C9 8.67157 9.67157 8 10.5 8C11.3284 8 12 8.67157 12 9.5V14.5C12 15.3284 11.3284 16 10.5 16C9.67157 16 9 15.3284 9 14.5V9.5ZM13 9.5C13 8.67157 13.6716 8 14.5 8C15.3284 8 16 8.67157 16 9.5V14.5C16 15.3284 15.3284 16 14.5 16C13.6716 16 13 15.3284 13 14.5V9.5Z" fill="#FF4B4B"></path></g></svg>`;
 
 function MobileNavBarFixedInButtom() {
+  const nav = useNavigate();
+  // Determine active tab based on location
+  const location = window.location.pathname;
+  // Default active is "Speak to order" ("/")
+  const isHome = location === "/home";
+  const isSpeak = !isHome; // "/" or anything else defaults to speak
+
   return (
     <div className="block md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 flex justify-around items-center py-2 z-50">
-      <div className="flex  items-center bg-light-pink py-2 px-2 rounded-lg">
-        <FaMicrophone className="text-xl text-medium-red" />
+      <div
+        className={`flex items-center py-2 px-2 rounded-lg cursor-pointer ${isSpeak ? "bg-light-pink" : "border border-light-red "
+          }`}
+        onClick={() => nav && nav("/")}
+      >
+        <FaMicrophone className={`text-xl ${isSpeak ? "text-medium-red" : "text-soft-red"}`} />
         <p className="m-0 text-xs">Speak to order</p>
       </div>
-      <div className="flex flex-col items-center">
-        <FaHome className="text-xl text-soft-red" />
+      <div
+        className={`flex flex-col items-center cursor-pointer ${isHome ? "bg-light-pink rounded-lg py-1 px-1" : ""
+          }`}
+        onClick={() => nav && nav("/home")}
+      >
+        <FaHome className={`text-xl ${isHome ? "text-medium-red" : "text-soft-red"}`} />
         <p className="m-0 text-xs">Home</p>
       </div>
       <div className="flex flex-col items-center">
@@ -51,7 +75,7 @@ function MobileNavBarFixedInButtom() {
 }
 
 
-const createWaveSurfer = ({ setSpeakState }) => {
+const createWaveSurfer = ({ setSpeakState, setOrders }) => {
 
   let scrollingWaveform = true
   let continuousWaveform = false
@@ -163,39 +187,61 @@ const createWaveSurfer = ({ setSpeakState }) => {
     submitBtn.className = 'py-2 px-4 w-full rounded  flex items-center justify-center bg-bright-red text-white'
     submitBtn.innerText = `Submit`
     submitBtn.onclick = () => {
-      // send the audio to the server at /upload_audio
+      // Clear existing buttons and show loading spinner
+      frame.innerHTML = `
+    <div class="flex justify-center items-center w-full py-4">
+      <svg class="animate-spin h-6 w-6 text-bright-red" xmlns="http://www.w3.org/2000/svg" fill="none"
+           viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10"
+                stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+      </svg>
+    </div>
+  `;
+
+      // Send audio to server
       const formData = new FormData();
       formData.append('audio_file', blob, 'recording.webm');
 
       fetch(`${SERVER_URL}/upload_audio`, {
         method: 'POST',
         body: formData,
-
-
       })
         .then(response => response.json())
         .then(data => {
           console.log('Server response:', data);
-          // Optionally handle server response here
+          setOrders(data.products);
+          if (recordingsElement && recordingsElement.firstChild) {
+            recordingsElement.removeChild(recordingsElement.firstChild);
+          }
+          // Replace spinner with "Click to continue order" button
+          frame.innerHTML = '';
+          const continueBtn = document.createElement('button');
+          continueBtn.className = 'py-2 px-4 w-full rounded border border-medium-red bg-soft-red text-white font-semibold ';
+          continueBtn.innerText = 'Click to continue order';
+          continueBtn.onclick = () => {
+            // Any next step logic here
+            console.log('Continuing order...');
+
+
+            setSpeakState(0)
+            frame.removeChild(frame.firstChild)
+          };
+          frame.appendChild(continueBtn);
         })
         .catch(error => {
           console.error('Error uploading audio:', error);
+          frame.innerHTML = `<p class="text-red-600">Upload failed. Try again.</p>`;
         });
-      // Search , 
-    }
+    };
+
     frame.appendChild(submitBtn)
 
 
-    // // Download link
-    // const link = container.appendChild(document.createElement('a'))
-    // Object.assign(link, {
-    //   href: recordedUrl,
-    //   download: 'recording.' + blob.type.split(';')[0].split('/')[1] || 'webm',
-    //   textContent: 'Download recording',
-    // })
+
   })
-  // pauseButton.style.display = 'none'
-  // recButton.textContent = 'Record'
+
 
 
 
@@ -204,14 +250,14 @@ const createWaveSurfer = ({ setSpeakState }) => {
 }
 
 
-function AudioFrame() {
+function AudioFrame({ setOrders }) {
   // needs to initiate state of speakings
   const [speakState, setSpeakState] = useState(0);
 
   useEffect(() => {
     console.log('Effect runs after render');
     console.log("element", document.querySelector('#mic'));
-    record = createWaveSurfer({ setSpeakState });
+    record = createWaveSurfer({ setSpeakState, setOrders });
   }, []);
 
   function handleAudioFrameIsClicked() {
@@ -308,32 +354,64 @@ function AudioFrame() {
 }
 
 
-
-
-
-
 function App() {
-
+  const [selected, setSelected] = useState(0);
+  const [orders, setOrders] = useState([]);
 
   return (
-    <>
-      {/* hello word */}
-      <TopMenu/>
-        <MenuList/>
-      <div className="min-h-screen flex flex-col justify-center items-center">
+    <BrowserRouter>
       
-        <AudioFrame />
-      </div>
-      <div className='bg-small-gray mx-0'>
-        <div className='mx-2'>
-           <OrderDetails />
-        <OrderOverall/>
-        </div>
-        
-      </div>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <>
+            <TopMenu />
+              <MenuList selected={selected} setSelected={setSelected} />
+              <div className=" flex flex-col justify-center items-center">
+                <AudioFrame setOrders={setOrders} />
+              </div>
 
+              {orders && orders.length !== 0 && (
+                <div className="bg-small-gray mx-0">
+                  <div className="mx-2">
+                    <OrderDetails setOrders={setOrders} orders={orders} />
+                    <OrderOverall orders={orders} />
+                  </div>
+                </div>
+              )}
+            </>
+          }
+        />
+        <Route
+          path="/home"
+          element={
+            <>
+            <TopMenu />
+              <Searching />
+              <SpecialOffer />
+              <MenuList selected={selected} setSelected={setSelected} />
+
+              {/* No AudioFrame, OrderDetails, or OrderOverall */}
+              <FoodList selected={selected} />
+
+              <PopularMenu />
+
+            </>
+          }
+        />
+         <Route
+          path="/thanks"
+          element={
+            <>
+            <Thanks />
+
+            </>
+          }
+        />
+      </Routes>
       <MobileNavBarFixedInButtom />
-    </>
+    </BrowserRouter>
   )
 }
 

@@ -1,39 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { ellipsisProductName } from "./utils/functions";
 
-function OrderDetails() {
+function OrderDetails({ orders, setOrders }) {
+
     function split_product_name(name) {
         return name.replace(/([a-z])([A-Z])/g, '$1 $2');
     }
-    function ellipsisProductName(name, maxLength = 18) {
-        if (!name) return '';
-        if (name.length <= maxLength) return name;
-        return name.slice(0, maxLength - 3) + '...';
-    }
-
-    const [orders, setOrders] = useState([
-        {
-            product: {
-                description: "Extra pepperoni, extra fromage mozzarella",
-                id: 12,
-                image_url: "https://glovo.dhmedia.io/image/menus-glovo/products/4f3904dad3c1f6fae77069413045fcba41c33ac0510855abb1e0546e015b1304?t=W3siYXV0byI6eyJxIjoibG93In19LHsicmVzaXplIjp7IndpZHRoIjoyNjAsImhlaWdodCI6MjYwfX1d",
-                name: "PizzaPepperoni",
-                price: "72,00 MAD"
-            },
-            quantity: 1,
-            company_name: "Slice & Stack Eatery"
-        },
-        {
-            product: {
-                description: "Thon tam, fromage rouge, luncheon, oignon, pomme de terre, olive verte, sauce piquante, ketchup, mayonnaise",
-                id: 174,
-                image_url: "https://glovo.dhmedia.io/image/menus-glovo/products/b2c0c26bb08acbd9dfbf32ce3026d425b4ffed45df56859222c1ced2220a6f8f?t=W3siYXV0byI6eyJxIjoibG93In19LHsicmVzaXplIjp7IndpZHRoIjoyNjAsImhlaWdodCI6MjYwfX1d",
-                name: "SandwichThonFromageRouge-Lanchon",
-                price: "20,00 MAD"
-            },
-            quantity: 1,
-            company_name: "Slice & Stack Eatery"
-        }
-    ]);
 
     const handleQuantityChange = (idx, delta) => {
         setOrders(prev =>
@@ -45,6 +17,10 @@ function OrderDetails() {
         );
     };
 
+    const handleDelete = (idx) => {
+        setOrders(prev => prev.filter((_, i) => i !== idx));
+    };
+
     return (
         <div>
             <div className='flex justify-start text-left font-semibold mb-4 mt-4'>
@@ -52,42 +28,62 @@ function OrderDetails() {
                     Order details
                 </p>
             </div>
-            <div id='orders' className='mt-2 '>
-                {orders.map((order, idx) => (
-                    <div
-                        key={idx}
-                        className="flex items-center mb-6 border border-gray-200 rounded-lg p-2 justify-between bg-white "
-                    >
-                        <div className="flex-shrink-0 mr-3 w-15 h-15">
-                            <img
-                                src={order.product.image_url}
-                                alt={order.product.name}
-                                className="w-12 h-12 object-cover rounded-md"
-                            />
+            <div id='orders' className='mt-2'>
+                {orders.map((order, idx) => {
+                    const priceNumber = parseFloat(
+                        String(order.product.price).replace(/[^\d.,]/g, '').replace(',', '.')
+                    ) || 0;
+
+                    return (
+                        <div
+                            key={idx}
+                            className="flex items-center mb-6 border border-gray-200 rounded-lg p-2 justify-between bg-white"
+                        >
+                            <div className="flex items-center space-x-3">
+                                <img
+                                    src={order.product.image_url}
+                                    alt={order.product.name}
+                                    className="w-12 h-12 object-cover rounded-md"
+                                />
+                                <div className="flex flex-col justify-center">
+                                    <p className="font-semibold mb-0.5">{ellipsisProductName(split_product_name(order.product.name))}</p>
+                                    <p className="text-gray-500 text-sm mb-0.5">{order.company_name}</p>
+                                    <p className="text-bright-red font-medium">
+                                        {(priceNumber * order.quantity).toLocaleString(undefined, { style: 'currency', currency: 'MAD' })}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    className="w-7 h-7 rounded-lg border bg-soft-cool-red text-lg cursor-pointer flex items-center justify-center text-bright-red"
+                                    onClick={() => handleQuantityChange(idx, -1)}
+                                    disabled={order.quantity <= 1}
+                                >
+                                    -
+                                </button>
+                                <span className="min-w-[24px] text-center font-medium">{order.quantity}</span>
+                                <button
+                                    className="w-7 h-7 rounded-lg border bg-bright-red text-lg cursor-pointer flex items-center justify-center text-white"
+                                    onClick={() => handleQuantityChange(idx, 1)}
+                                >
+                                    +
+                                </button>
+
+                                {/* Delete Button */}
+                                <button
+                                    className="ml-2 w-7 h-7 rounded-lg flex items-center justify-center bg-white text-gray-400 hover:text-red-600 border border-gray-200"
+                                    onClick={() => handleDelete(idx)}
+                                    title="Remove item"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
-                        <div className="flex flex-col justify-center">
-                            <p className="font-semibold mb-0.5">{ellipsisProductName(split_product_name(order.product.name))}</p>
-                            <p className="text-gray-500 text-sm mb-0.5">{order.company_name}</p>
-                            <p className="text-bright-red  font-medium">{order.product.price}</p>
-                        </div>
-                        <div className="flex items-center ml-3 justify-end">
-                            <button
-                                className="w-7 h-7 rounded-lg border  bg-soft-cool-red text-lg cursor-pointer mr-1.5 flex items-center justify-center text-bright-red"
-                                onClick={() => handleQuantityChange(idx, -1)}
-                                disabled={order.quantity <= 1}
-                            >
-                                -
-                            </button>
-                            <span className="min-w-[24px] text-center font-medium">{order.quantity}</span>
-                            <button
-                                className="w-7 h-7 rounded-lg border bg-bright-red text-lg cursor-pointer ml-1.5 flex items-center justify-center  text-white"
-                                onClick={() => handleQuantityChange(idx, 1)}
-                            >
-                                +
-                            </button>
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

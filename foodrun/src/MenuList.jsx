@@ -6,8 +6,10 @@ const menuItems = [
     { name: "Sandwish", image: "src/assets/images/sandwish.png" }
 ];
 
-export default function MenuList() {
-  const [selected, setSelected] = useState(0);
+export default function MenuList({
+    selected, setSelected
+}) {
+  
 
   return (
 

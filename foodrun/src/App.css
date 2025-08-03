@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+.bg-white-pink {
+  background-color: #FFE5E5;
+}
 .bg-light-pink { background-color: #FFCCCC; }
 .bg-soft-red { background-color: #FF8080; }
 .bg-medium-red { background-color: #FF4B4B; }
@@ -66,4 +69,8 @@ button:hover,
 #overall {
   background-image: url("../src/assets/Pattern_Plan.png");
   background-color: #FF0000;
+}
+
+#thanks {
+  background: url("../src/assets/images/thanks_pattern.png") center/cover no-repeat;
 }

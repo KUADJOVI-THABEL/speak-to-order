@@ -1,11 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 import './App.css'
+
 import { FaMicrophone, FaHome, FaUser, FaShoppingCart, FaCommentDots, FaStop } from 'react-icons/fa';
 import WaveSurfer from 'wavesurfer.js'
+import OrderDetails from './OrderDetails'
+
 import RecordPlugin from 'wavesurfer.js/dist/plugins/record.esm.js'
 import { SPEAK_STATE_DONESPEAKING, SPEAK_STATE_INITIAL, SPEAK_STATE_SPEAKING, SpeakingStateConts } from './utils/SpeakingState';
-
+import OrderOverall from './OrderOverall'
+import MenuList from './MenuList';
+import TopMenu from './TopMenu';
 
 const SERVER_URL = "http://localhost:5000"
 // Global variables
@@ -46,7 +51,7 @@ function MobileNavBarFixedInButtom() {
 }
 
 
-const createWaveSurfer = () => {
+const createWaveSurfer = ({ setSpeakState }) => {
 
   let scrollingWaveform = true
   let continuousWaveform = false
@@ -107,77 +112,78 @@ const createWaveSurfer = () => {
     })
 
     // Create a frame div to hold controls
-const frame = container.appendChild(document.createElement('div'))
-frame.className = 'flex items-center space-x-2 mt-2 justify-center'
+    const frame = container.appendChild(document.createElement('div'))
+    frame.className = 'flex items-center space-x-2 mt-2 justify-center'
 
-// Play/Pause button with icon (ghost style)
-const playBtn = document.createElement('button')
-playBtn.className = 'p-2 flex items-center border rounded bg-white shadow text-gray-700 border-gray-300 hover:border-light-red'
+    // Play/Pause button with icon (ghost style)
+    const playBtn = document.createElement('button')
+    playBtn.className = 'p-2 flex items-center border rounded bg-white shadow text-gray-700 border-gray-300 hover:border-light-red'
 
-// Insert icon (initially play icon)
-playBtn.innerHTML = `
+    // Insert icon (initially play icon)
+    playBtn.innerHTML = `
   ${svgPlayBtn}
 `
 
-playBtn.onclick = () => wavesurfer.playPause()
+    playBtn.onclick = () => wavesurfer.playPause()
 
-wavesurfer.on('pause', () => {
-  playBtn.innerHTML = `
+    wavesurfer.on('pause', () => {
+      playBtn.innerHTML = `
       ${svgPlayBtn}
   `
-})
+    })
 
-wavesurfer.on('play', () => {
-  playBtn.innerHTML = `
+    wavesurfer.on('play', () => {
+      playBtn.innerHTML = `
      ${svgPauseBtn}
   `
-})
+    })
 
-// Delete button with icon
-const deleteBtn = document.createElement('button')
-deleteBtn.className = 'p-2 flex items-center text-bright-red bg-white shadow rounded'
-deleteBtn.innerHTML = `
+    // Delete button with icon
+    const deleteBtn = document.createElement('button')
+    deleteBtn.className = 'p-2 flex items-center text-bright-red bg-white shadow rounded'
+    deleteBtn.innerHTML = `
   <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
        viewBox="0 0 24 24" stroke="currentColor">
     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
           d="M6 18L18 6M6 6l12 12" />
   </svg>
 `
-deleteBtn.onclick = () => {
-  // Your delete logic here
-  // container.style.display = 'none'
-}
+    deleteBtn.onclick = () => {
+      // Your delete logic here
+      // container.style.display = 'none'
+      setSpeakState(-1) // set to zero
+    }
 
-// Append buttons
-frame.appendChild(deleteBtn)
-frame.appendChild(playBtn)
+    // Append buttons
+    frame.appendChild(deleteBtn)
+    frame.appendChild(playBtn)
 
-// Submit button remains unchanged
-const submitBtn = document.createElement('button')
-submitBtn.className = 'py-2 px-4 w-full rounded  flex items-center justify-center bg-bright-red text-white'
-submitBtn.innerText = `Submit`
-submitBtn.onclick = () => {
-// send the audio to the server at /upload_audio
-const formData = new FormData();
-formData.append('audio_file', blob, 'recording.webm');
+    // Submit button remains unchanged
+    const submitBtn = document.createElement('button')
+    submitBtn.className = 'py-2 px-4 w-full rounded  flex items-center justify-center bg-bright-red text-white'
+    submitBtn.innerText = `Submit`
+    submitBtn.onclick = () => {
+      // send the audio to the server at /upload_audio
+      const formData = new FormData();
+      formData.append('audio_file', blob, 'recording.webm');
 
-fetch(`${SERVER_URL}/upload_audio`, {
-  method: 'POST',
-  body: formData,
+      fetch(`${SERVER_URL}/upload_audio`, {
+        method: 'POST',
+        body: formData,
 
- 
-})
-  .then(response => response.json())
-  .then(data => {
-    console.log('Server response:', data);
-    // Optionally handle server response here
-  })
-  .catch(error => {
-    console.error('Error uploading audio:', error);
-  });
-  // Search , 
-}
-frame.appendChild(submitBtn)
+
+      })
+        .then(response => response.json())
+        .then(data => {
+          console.log('Server response:', data);
+          // Optionally handle server response here
+        })
+        .catch(error => {
+          console.error('Error uploading audio:', error);
+        });
+      // Search , 
+    }
+    frame.appendChild(submitBtn)
 
 
     // // Download link
@@ -191,9 +197,7 @@ frame.appendChild(submitBtn)
   // pauseButton.style.display = 'none'
   // recButton.textContent = 'Record'
 
-  record.on('record-progress', (time) => {
 
-  })
 
   return record
 
@@ -207,7 +211,7 @@ function AudioFrame() {
   useEffect(() => {
     console.log('Effect runs after render');
     console.log("element", document.querySelector('#mic'));
-    record = createWaveSurfer();
+    record = createWaveSurfer({ setSpeakState });
   }, []);
 
   function handleAudioFrameIsClicked() {
@@ -314,9 +318,18 @@ function App() {
   return (
     <>
       {/* hello word */}
+      <TopMenu/>
+        <MenuList/>
       <div className="min-h-screen flex flex-col justify-center items-center">
+      
         <AudioFrame />
-
+      </div>
+      <div className='bg-small-gray mx-0'>
+        <div className='mx-2'>
+           <OrderDetails />
+        <OrderOverall/>
+        </div>
+        
       </div>
 
       <MobileNavBarFixedInButtom />

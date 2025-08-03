@@ -8,14 +8,25 @@
 .bg-bright-red { background-color: #FF0000; }
 .bg-orange { background-color: #FF9F06; }
 .bg-pale-pink { background-color: #FFE9E9; }
+.bg-soft-cool-red {
+   background-color: #FFE6E6;
+}
 .bg-small-pink {
-  background-color: "#FF7E70";
+  background-color: #FF7E70
 }
 .text-light-pink,
 
 .text-soft-red { color: #FF8080; }
-.text-medium-red,
+.text-medium-red {
+  color: #FF4B4B;
+}
 
+.text-soft-cool-red {
+  color: "#FFE6E6";
+}
+.bg-small-gray {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F7F8FE 100%);
+}
 .text-bright-red { color: #FF0000; }
 .text-orange { color: #FF9F06; }
 .text-pale-pink { color: #FFE9E9; }
@@ -34,12 +45,25 @@
 body {
   font-family: 'Nunito';
   display: block;
+ 
 }
 
-#recordings button:hover,
-#recordings button:focus,
-#recordings button:focus-visible{
+button:hover,
+ button:focus,
+ button:focus-visible {
   border-color: #FF8080;
   outline: #FF8080;
 }
 
+#orders button:hover,
+#orders button:focus,
+#orders button:focus-visible
+#orders button {
+  border-color: #FF8080;
+  outline: #FF8080;
+}
+
+#overall {
+  background-image: url("../src/assets/Pattern_Plan.png");
+  background-color: #FF0000;
+}

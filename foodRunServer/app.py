@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from io import BytesIO
 import os
 import google.generativeai as genai
+import sqlite3
 from flask import Flask, request, render_template, jsonify
 from werkzeug.utils import secure_filename
 from flask_cors import CORS  # <-- Add this import
@@ -13,6 +14,8 @@ from flask_cors import CORS  # <-- Add this import
 from elevenlabs.client import ElevenLabs
 from dotenv import load_dotenv
 
+from get_order_from_transcript import get_products_from_transcript
+from queries_foods import find_product_by_name_like, parse_fetch_to_json
 load_dotenv()
 elevenlabs = ElevenLabs(
   api_key=os.getenv("ELEVENLABS_API_KEY"),
@@ -78,6 +81,9 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+
+
+
 @app.route('/upload_audio', methods=['POST'])
 def upload_audio():
     """
@@ -100,40 +106,22 @@ def upload_audio():
 
     try:
         if file and allowed_file(file.filename):
+            app.logger.info("Received file: %s", file)
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
-            app.logger.info(f"Saved local file: {filepath}")
-
-            # Upload file to Gemini's Files API
-            audio_file_part = genai.upload_file(filepath)
-            app.logger.info(f"Uploaded file to Gemini: {audio_file_part.name}")
-
-            # --- Polling for file status ---
-            max_retries = 15  # Increased retries for potentially larger files or slower processing
-            retry_delay_seconds = 2  # Initial delay
+            app.logger.info("Saved local file: %s", filepath)
             
-            for i in range(max_retries):
-                retrieved_file = genai.get_file(name=audio_file_part.name)
-                if retrieved_file.state.name == 'ACTIVE':
-                    app.logger.info(f"File {audio_file_part.name} is ACTIVE after {i+1} checks.")
-                    break
-                else:
-                    app.logger.info(f"File {audio_file_part.name} state: {retrieved_file.state.name}. Retrying in {retry_delay_seconds} seconds...")
-                    time.sleep(retry_delay_seconds)
-                    # Optional: Exponential backoff for retries
-                    # retry_delay_seconds = min(retry_delay_seconds * 1.5, 30) # Cap delay at 30 seconds
-            else:
-                # If loop completes without breaking, file never became active
-                raise Exception(f"File {audio_file_part.name} did not become ACTIVE within the allowed time. Current state: {retrieved_file.state.name}")
-
-            # Now that the file is ACTIVE, proceed with content generation
-            prompt = "Please explain the content of this audio. What is happening or being said?"
-            response = model.generate_content([prompt, audio_file_part])
-
-            return jsonify({"explanation": response.text})
-        else:
-            return jsonify({"error": "Invalid file type. Allowed types are: " + ', '.join(ALLOWED_EXTENSIONS)}), 400
+            transcription = elevenlabs.speech_to_text.convert(
+                file=open(filepath, "rb"),
+                model_id="scribe_v1",
+                tag_audio_events=True,
+                language_code="eng",
+                diarize=True
+            )
+            product_data = get_products_from_transcript(transcription.text)
+            return jsonify({"explanation": transcription.text, "products": product_data}), 200
+        return jsonify({"error": "Invalid file type. Allowed types are: " + ', '.join(ALLOWED_EXTENSIONS)}), 400
 
     except Exception as e:
         app.logger.error(f"Error in upload_audio: {e}", exc_info=True)
@@ -156,3 +144,26 @@ def upload_audio():
             except Exception as e:
                 # Log a warning if Gemini file deletion fails, but don't block the response
                 app.logger.warning(f"Failed to delete Gemini file {audio_file_part.name}: {e}")
+
+
+@app.route('/search', methods=['POST'])
+def search_products():
+    """
+    Searches for products by name using a LIKE query.
+    Expects a JSON payload with a 'name' field.
+    """
+    data = request.get_json()
+    if not data or 'name' not in data:
+        return jsonify({"error": "Invalid request, 'name' field is required"}), 400
+
+    name = data['name']
+    conn = sqlite3.connect('products.db')
+    
+    try:
+        results = find_product_by_name_like(conn, name)
+        return jsonify(parse_fetch_to_json(results)), 200
+    except Exception as e:
+        app.logger.error(f"Error searching products: {e}", exc_info=True)
+        return jsonify({"error": f"Error searching products: {str(e)}"}), 500
+    finally:
+        conn.close()

@@ -1,7 +1,9 @@
 import React from "react";
 import { MdLocationOn } from "react-icons/md";
+import { useNavigate } from "react-router-dom";
 
 const TopMenu = () => {
+     const nav = useNavigate();
     return (
         <div className="relative ">
             {/* Background rectangle */}
@@ -18,11 +20,20 @@ const TopMenu = () => {
                 {/* You can later apply a pattern background image here */}
                 <img src="src/assets/images/pattern.png" alt="" />
             </div>
+          
+     
 
-            {/* Foreground content */}
-            <div className="relative flex items-center justify-between py-2 bg-white mb-2 z-10">
+            <div className="relative flex items-center justify-between py-2 bg-white mb-2 z-10 ">
+                <div className="hidden md:block">
+                    <h1
+                        className="text-bright-red mx-2 text-bold text-lg cursor-pointer"
+                        onClick={() => nav("/")}
+                    >
+                        Food Runs
+                    </h1>
+                </div>
                 {/* Hamburger */}
-                <button className="p-2 rounded-md hover:bg-gray-100">
+                <button className="p-2 rounded-md hover:bg-gray-100  md:hidden">
                     <svg
                         className="w-6 h-6 text-gray-800"
                         fill="none"
@@ -33,9 +44,24 @@ const TopMenu = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
+                    <div className="hidden md:flex gap-2">
+                                {/* Localisation Icon */}
+                            <div className="flex-1 flex justify-center items-center">
+                                <span className="w-7 h-7 text-red-600 flex items-center justify-center">
+                                    <MdLocationOn className="w-7 h-7 text-medium-red" />
+                                </span>
+                                <span className="text-sm ml-1">Freedom way, Lekki phase</span>
+                            </div>
 
+                            {/* Profile image */}
+                            <img
+                                src="https://randomuser.me/api/portraits/men/32.jpg"
+                                alt="Profile"
+                                className="w-9 h-9 rounded-full object-cover border-2 border-gray-200 "
+                            />
+                    </div>
                 {/* Localisation Icon */}
-                <div className="flex-1 flex justify-center items-center">
+                <div className="flex-1 flex justify-center items-center md:hidden">
                     <span className="w-7 h-7 text-red-600 flex items-center justify-center">
                         <MdLocationOn className="w-7 h-7 text-medium-red" />
                     </span>
@@ -46,7 +72,7 @@ const TopMenu = () => {
                 <img
                     src="https://randomuser.me/api/portraits/men/32.jpg"
                     alt="Profile"
-                    className="w-9 h-9 rounded-full object-cover border-2 border-gray-200"
+                    className="w-9 h-9 rounded-full object-cover border-2 border-gray-200 md:hidden"
                 />
             </div>
         </div>

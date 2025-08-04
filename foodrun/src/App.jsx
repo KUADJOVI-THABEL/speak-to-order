@@ -15,7 +15,9 @@ import TopMenu from './TopMenu';
 import Searching from './Searching';
 import PopularMenu from './PopularMenu';
 import SpecialOffer from './SpecialOffer';
+import SelectGroup from './SelectGroup'
 import FoodList from './FoodList'
+import NoOrderMessage from "./NoOrderMessage"
 import Thanks from './Thanks';
 import { SERVER_URL } from "./utils/constants";
 
@@ -75,7 +77,7 @@ function MobileNavBarFixedInButtom() {
 }
 
 
-const createWaveSurfer = ({ setSpeakState, setOrders }) => {
+const createWaveSurfer = ({  setOrders , setIsWaitingForAudioResponse , setSpeakState}) => {
 
   let scrollingWaveform = true
   let continuousWaveform = false
@@ -85,6 +87,9 @@ const createWaveSurfer = ({ setSpeakState, setOrders }) => {
     wavesurfer.destroy()
   }
 
+  const mic_container = document.querySelector('#mic')
+  if (!mic_container)
+    return undefined;
   // Create a new Wavesurfer instance
   wavesurfer = WaveSurfer.create({
     container: '#mic',
@@ -108,10 +113,13 @@ const createWaveSurfer = ({ setSpeakState, setOrders }) => {
 
   // Render recorded audio
   record.on('record-end', (blob) => {
-    // Hide the #mic then
+    // Hide the #mic and remove all its children
     const micElement = document.querySelector('#mic');
     if (micElement) {
       micElement.style.display = 'none';
+      while (micElement.firstChild) {
+      micElement.removeChild(micElement.firstChild);
+      }
     }
     const recordingsElement = document.querySelector('#recordings');
     if (recordingsElement) {
@@ -172,11 +180,21 @@ const createWaveSurfer = ({ setSpeakState, setOrders }) => {
           d="M6 18L18 6M6 6l12 12" />
   </svg>
 `
-    deleteBtn.onclick = () => {
-      // Your delete logic here
-      // container.style.display = 'none'
-      setSpeakState(-1) // set to zero
-    }
+    deleteBtn.onclick = (e) => {
+  console.log("you are trying to delete");
+  e.stopPropagation();
+   // or setSpeakState(() => 0), both fine here
+  // const micElement = document.querySelector('#mic');
+  //   if (micElement) {
+  //     micElement.style.display = 'none';
+  //   }
+  //   const recordingsElement = document.querySelector('#recordings');
+  //   if (recordingsElement) {
+  //     recordingsElement.style.display = 'none';
+  //   }
+    setSpeakState(() => 0)
+};
+
 
     // Append buttons
     frame.appendChild(deleteBtn)
@@ -184,7 +202,7 @@ const createWaveSurfer = ({ setSpeakState, setOrders }) => {
 
     // Submit button remains unchanged
     const submitBtn = document.createElement('button')
-    submitBtn.className = 'py-2 px-4 w-full rounded  flex items-center justify-center bg-bright-red text-white'
+    submitBtn.className = 'py-2 px-4 w-full md:w-fit rounded  flex items-center justify-center bg-bright-red text-white'
     submitBtn.innerText = `Submit`
     submitBtn.onclick = () => {
       // Clear existing buttons and show loading spinner
@@ -203,7 +221,7 @@ const createWaveSurfer = ({ setSpeakState, setOrders }) => {
       // Send audio to server
       const formData = new FormData();
       formData.append('audio_file', blob, 'recording.webm');
-
+      setIsWaitingForAudioResponse(true)
       fetch(`${SERVER_URL}/upload_audio`, {
         method: 'POST',
         body: formData,
@@ -211,6 +229,7 @@ const createWaveSurfer = ({ setSpeakState, setOrders }) => {
         .then(response => response.json())
         .then(data => {
           console.log('Server response:', data);
+          setIsWaitingForAudioResponse(false)
           setOrders(data.products);
           if (recordingsElement && recordingsElement.firstChild) {
             recordingsElement.removeChild(recordingsElement.firstChild);
@@ -218,19 +237,18 @@ const createWaveSurfer = ({ setSpeakState, setOrders }) => {
           // Replace spinner with "Click to continue order" button
           frame.innerHTML = '';
           const continueBtn = document.createElement('button');
-          continueBtn.className = 'py-2 px-4 w-full rounded border border-medium-red bg-soft-red text-white font-semibold ';
+          continueBtn.className = 'py-2 px-4 w-full md:w-fit rounded border border-medium-red bg-soft-red text-white font-semibold ';
           continueBtn.innerText = 'Click to continue order';
           continueBtn.onclick = () => {
             // Any next step logic here
             console.log('Continuing order...');
-
-
-            setSpeakState(0)
-            frame.removeChild(frame.firstChild)
+            setSpeakState(()=>0)
+            
           };
           frame.appendChild(continueBtn);
         })
         .catch(error => {
+          setIsWaitingForAudioResponse(false);
           console.error('Error uploading audio:', error);
           frame.innerHTML = `<p class="text-red-600">Upload failed. Try again.</p>`;
         });
@@ -250,14 +268,16 @@ const createWaveSurfer = ({ setSpeakState, setOrders }) => {
 }
 
 
-function AudioFrame({ setOrders }) {
+function AudioFrame({ setOrders , isWaitingForAudioResponse , setIsWaitingForAudioResponse}) {
   // needs to initiate state of speakings
   const [speakState, setSpeakState] = useState(0);
-
+  if (record === undefined) {
+    record = createWaveSurfer({ setOrders , setIsWaitingForAudioResponse,setSpeakState})
+  }
   useEffect(() => {
     console.log('Effect runs after render');
     console.log("element", document.querySelector('#mic'));
-    record = createWaveSurfer({ setSpeakState, setOrders });
+    record = createWaveSurfer({ setOrders , setIsWaitingForAudioResponse,setSpeakState});
   }, []);
 
   function handleAudioFrameIsClicked() {
@@ -292,8 +312,10 @@ function AudioFrame({ setOrders }) {
       record.stopRecording()
     }
     if (SpeakingStateConts[speakState] === SPEAK_STATE_DONESPEAKING) {
-
-      return;
+      // if now i'm waiting for a response nothing should hapen
+      if (isWaitingForAudioResponse)
+        return;
+      setIsWaitingForAudioResponse(false);
       // alors 
     }
     setSpeakState((speakState + 1) % 3)
@@ -302,7 +324,7 @@ function AudioFrame({ setOrders }) {
   // AKA :  record initili
   return (
 
-    <div className="flex flex-col items-center justify-center" onClick={handleAudioFrameIsClicked}>
+    <div className="flex flex-col items-center  mt-24" onClick={handleAudioFrameIsClicked}>
       <div className="relative w-48 h-48">
         {/* Slow pulsing concentric circles */}
         {
@@ -331,21 +353,23 @@ function AudioFrame({ setOrders }) {
       </div>
 
 
-      <div id="mic" className='w-full'>
+      <div id="mic" className='w-full md:mx-4'>
 
       </div>
 
 
 
 
-      <div id="recordings" className='w-full'>
+      <div id="recordings" className='w-full md:w-fit'>
 
       </div>
-
+            <p>
+              this is the : {speakState}
+              </p>
 
       {
         SpeakingStateConts[speakState] === SPEAK_STATE_SPEAKING &&
-        <button className="bg-bright-red  hover:bg-red-900 text-white font-bold py-2 px-4 w-full  mx-2">
+        <button className="bg-bright-red  hover:bg-red-900 text-white font-bold py-2 px-4 w-full md:w-fit mx-2">
           Stop
         </button>
       }
@@ -357,29 +381,90 @@ function AudioFrame({ setOrders }) {
 function App() {
   const [selected, setSelected] = useState(0);
   const [orders, setOrders] = useState([]);
-
+  const [isWaitingForAudioResponse , setIsWaitingForAudioResponse] = useState(true);
+  const location = window.location.pathname;
+  const isSpeak = location === "/"
   return (
     <BrowserRouter>
-      
+
       <Routes>
         <Route
           path="/"
           element={
             <>
-            <TopMenu />
-              <MenuList selected={selected} setSelected={setSelected} />
-              <div className=" flex flex-col justify-center items-center">
-                <AudioFrame setOrders={setOrders} />
-              </div>
-
-              {orders && orders.length !== 0 && (
-                <div className="bg-small-gray mx-0">
-                  <div className="mx-2">
-                    <OrderDetails setOrders={setOrders} orders={orders} />
-                    <OrderOverall orders={orders} />
+              <TopMenu />
+              <div className='grid md:grid-cols-3 lg:grid-cols-[300px_1fr_4fr] lg:gap-x-20 lg:gap-y-4'>
+                {/* col 1 */}
+                <div className='hidden md:col-span-1 md:block'>
+                  <div
+                    className={`flex items-center py-2 px-2 rounded-lg cursor-pointer mx-2 gap-2 ${isSpeak ? "bg-light-pink" : "border border-light-red "
+                      }`}
+                    onClick={() => nav && nav("/")}
+                  >
+                    <FaMicrophone className={`text-xl ${isSpeak ? "text-medium-red" : "text-soft-red"}`} />
+                    <p className="m-0 text-xs">Speak to order</p>
                   </div>
                 </div>
-              )}
+
+                {/* col 2 to 3 */}
+
+                <div className='md:col-span-2 '>
+                  <Searching />
+                </div>
+
+                <div className='md:col-span-1'>
+                  <SpecialOffer />
+                  <div className='hidden md:block'>
+                    <SelectGroup />
+                  </div>
+
+                </div>
+                {/* Medium Size */}
+                <div className='hidden md:col-span-2 md:block'>
+                  <MenuList selected={selected} setSelected={setSelected} />
+                  <div className='md:grid md:grid-cols-5'>
+                    <div className='md:col-span-3 mx-2 border border-red-500'>
+                      <AudioFrame setOrders={setOrders} isWaitingForAudioResponse = {isWaitingForAudioResponse} setIsWaitingForAudioResponse={setIsWaitingForAudioResponse}/>
+                    </div>
+                     
+                    {orders && orders.length !== 0 ? (
+                      <div className="bg-small-gray mx-0 md:col-span-2">
+                        <div className="mx-2">
+                          <OrderDetails setOrders={setOrders} orders={orders} />
+                          <OrderOverall orders={orders} />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className='md:col-span-2'>
+ <NoOrderMessage />
+                      </div>
+                     
+                    )}
+
+                  </div>
+
+                </div>
+              </div>
+              <div className='md:hidden'>
+                <MenuList selected={selected} setSelected={setSelected} />
+              </div>
+
+              <div className="md:hidden flex flex-col justify-center items-center mx-2">
+                <AudioFrame setOrders={setOrders} />
+              </div>
+                    <div className='md:hidden'>
+  {orders && orders.length !== 0 ? (
+                      <div className="bg-small-gray mx-0 md:col-span-2">
+                        <div className="mx-2">
+                          <OrderDetails setOrders={setOrders} orders={orders} />
+                          <OrderOverall orders={orders} />
+                        </div>
+                      </div>
+                    ) : (
+                      <NoOrderMessage />
+                    )}
+                    </div>
+           
             </>
           }
         />
@@ -387,24 +472,63 @@ function App() {
           path="/home"
           element={
             <>
-            <TopMenu />
-              <Searching />
-              <SpecialOffer />
-              <MenuList selected={selected} setSelected={setSelected} />
+              <TopMenu />
+              <div className='grid md:grid-cols-3 lg:grid-cols-[300px_1fr_4fr] lg:gap-x-20 lg:gap-y-4'>
+                {/* col 1 */}
+                <div className='hidden md:col-span-1 md:block'>
+                  <div
+                    className={`flex items-center py-2 px-2 rounded-lg cursor-pointer mx-2 gap-2 ${isSpeak ? "bg-light-pink" : "border border-light-red "
+                      }`}
+                    onClick={() => nav && nav("/")}
+                  >
+                    <FaMicrophone className={`text-xl ${isSpeak ? "text-medium-red" : "text-soft-red"}`} />
+                    <p className="m-0 text-xs">Speak to order</p>
+                  </div>
+                </div>
+                {/* col 2 to 3 */}
 
-              {/* No AudioFrame, OrderDetails, or OrderOverall */}
-              <FoodList selected={selected} />
+                <div className='md:col-span-2 '>
+                  <Searching />
+                </div>
 
-              <PopularMenu />
+                <div className='md:col-span-1'>
+                  <SpecialOffer />
+                  <div className='hidden md:block'>
+                    <SelectGroup />
+                  </div>
+
+                </div>
+
+                <div className='hidden md:col-span-2 md:block'>
+                  <MenuList selected={selected} setSelected={setSelected} />
+                  <div>
+                    <FoodList selected={selected} />
+                  </div>
+                  <div>
+                    <PopularMenu />
+                  </div>
+                </div>
+
+                {/* No AudioFrame, OrderDetails, or OrderOverall */}
+                <div className='md:hidden'>
+                  <MenuList selected={selected} setSelected={setSelected} />
+                </div>
+                <FoodList selected={selected} hidden='md:hidden' />
+                <div className='md:hidden'>
+                  <PopularMenu />
+                </div>
+
+              </div>
+
 
             </>
           }
         />
-         <Route
+        <Route
           path="/thanks"
           element={
             <>
-            <Thanks />
+              <Thanks />
 
             </>
           }

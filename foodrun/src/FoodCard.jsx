@@ -26,14 +26,14 @@ const FoodCard = ({
             <img
                 src={image}
                 alt={name}
-                className=" h-32 object-cover rounded-xl"
+                className=" h-32 object-cover rounded-xl md:h-36"
             />
 
             {/* Food name */}
-            <div className="text-base font-bold text-gray-900">{ellipsisProductName(name)}</div>
+            <div className="text-base font-bold text-gray-900 truncate">{(name)}</div>
 
             {/* Description */}
-            <div className="text-base text-gray-600 ">{ellipsisProductName(description)}</div>
+            <div className="text-base text-gray-600 truncate">{(description)}</div>
 
             {/* Bottom row: Price and add button */}
             <div className="flex items-center justify-between mt-2">

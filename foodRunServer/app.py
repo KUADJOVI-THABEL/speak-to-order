@@ -116,7 +116,7 @@ def upload_audio():
                 file=open(filepath, "rb"),
                 model_id="scribe_v1",
                 tag_audio_events=True,
-                language_code="eng",
+              
                 diarize=True
             )
             product_data = get_products_from_transcript(transcription.text)
@@ -165,5 +165,41 @@ def search_products():
     except Exception as e:
         app.logger.error(f"Error searching products: {e}", exc_info=True)
         return jsonify({"error": f"Error searching products: {str(e)}"}), 500
+    finally:
+        conn.close()
+
+@app.route('/submit_feedback', methods=['POST'])
+def submit_feedback():
+    """
+    Receives feedback as JSON and stores it in the Feedback table.
+    If the table does not exist, it will be created.
+    Expects JSON body: { "ip": ..., "rating": ..., "comment": ... }
+    """
+    data = request.get_json()
+    if not data or 'ip' not in data or 'rating' not in data or 'comment' not in data:
+        return jsonify({"error": "Missing required fields: ip, rating, comment"}), 400
+
+    conn = sqlite3.connect('products.db')
+    try:
+        # Create table if it doesn't exist
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS Feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ip TEXT,
+                rating INTEGER,
+                comment TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Insert feedback
+        conn.execute(
+            "INSERT INTO Feedback (ip, rating, comment) VALUES (?, ?, ?)",
+            (data['ip'], data['rating'], data['comment'])
+        )
+        conn.commit()
+        return jsonify({"message": "Feedback submitted successfully"}), 200
+    except Exception as e:
+        app.logger.error(f"Error submitting feedback: {e}", exc_info=True)
+        return jsonify({"error": f"Error submitting feedback: {str(e)}"}), 500
     finally:
         conn.close()

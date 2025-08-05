@@ -1,37 +1,33 @@
 from aws_cdk import (
-    Duration,
     Stack,
+    Duration,
     aws_lambda as _lambda,
-    aws_lambda_python_alpha as _lambda_python,
-)
-from aws_cdk.aws_apigateway import (
-    LambdaIntegration,
-    RestApi,
+    aws_apigateway as apigateway,
 )
 from constructs import Construct
 
 class AwsCdkFlaskStack(Stack):
 
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, construct_id: str, **kwargs):
         super().__init__(scope, construct_id, **kwargs)
 
-        api = RestApi(self, "flask-api", rest_api_name="flask-api")
-
-
-        flask_lambda = _lambda_python.PythonFunction(
+        # Create Docker-based Lambda function
+        flask_lambda = _lambda.DockerImageFunction(
             self,
-            "lambda_handler",
+            "FlaskLambda",
             function_name="flask-lambda",
-            entry="lambdas",
-            index="lambda_handler.py",
-            handler="handler",
-            runtime=_lambda.Runtime.PYTHON_3_10,
-            timeout = Duration.seconds(30),
+            code=_lambda.DockerImageCode.from_image_asset("."),
+            timeout=Duration.seconds(30),
         )
-        
-        root_resource = api.root
 
-        any_method = root_resource.add_method(
+        # Create API Gateway REST API
+        api = apigateway.RestApi(self, "FlaskApi",
+            rest_api_name="Flask Service",
+            description="Flask app in Lambda via Docker",
+        )
+
+        # Integrate Lambda with API Gateway root path
+        api.root.add_method(
             "ANY",
-            LambdaIntegration(flask_lambda)
+            apigateway.LambdaIntegration(flask_lambda)
         )

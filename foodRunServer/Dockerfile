@@ -20,7 +20,7 @@ FROM public.ecr.aws/lambda/python:3.9
 COPY --from=builder /app/dependencies ${LAMBDA_TASK_ROOT}
 
 # Copy the application code
-COPY all_products.json ${LAMBDA_TASK_ROOT}/
+
 COPY *.py ${LAMBDA_TASK_ROOT}/
 COPY *.db ${LAMBDA_TASK_ROOT}/
 COPY .env ${LAMBDA_TASK_ROOT}/

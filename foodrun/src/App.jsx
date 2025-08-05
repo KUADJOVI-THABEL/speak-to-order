@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import './App.css'
@@ -77,218 +77,214 @@ function MobileNavBarFixedInButtom() {
 }
 
 
-const createWaveSurfer = ({  setOrders , setIsWaitingForAudioResponse , setSpeakState}) => {
+function AudioFrame({ setOrders, isWaitingForAudioResponse, setIsWaitingForAudioResponse }) {
+  const [speakState, setSpeakState] = useState(0);
+  const wavesurferRef = useRef(null);
+  const recordRef = useRef(null);
 
-  let scrollingWaveform = true
-  let continuousWaveform = false
-  console.log("recors", document.querySelector('#root'))
-  // Destroy the previous wavesurfer instance
-  if (wavesurfer) {
-    wavesurfer.destroy()
-  }
+  // Use refs to ensure we always have the latest state setters
+  const speakStateRef = useRef(speakState);
+  const setSpeakStateRef = useRef(setSpeakState);
 
-  const mic_container = document.querySelector('#mic')
-  if (!mic_container)
-    return undefined;
-  // Create a new Wavesurfer instance
-  wavesurfer = WaveSurfer.create({
-    container: '#mic',
-    cursorWidth: 0,
-    barWidth: 2,
-    barGap: 2,
-    height: 76,
-    waveColor: 'rgb(200, 0, 200)',
-    progressColor: 'rgb(100, 0, 100)',
-  })
+  // Update refs when state changes
+  useEffect(() => {
+    speakStateRef.current = speakState;
+    setSpeakStateRef.current = setSpeakState;
+  }, [speakState]);
 
-  // Initialize the Record plugin
-  record = wavesurfer.registerPlugin(
-    RecordPlugin.create({
-      renderRecordedAudio: false,
-      scrollingWaveform,
-      continuousWaveform,
-      continuousWaveformDuration: 30, // optional
-    }),
-  )
+  const createWaveSurfer = useCallback(() => {
+    let scrollingWaveform = true;
+    let continuousWaveform = false;
 
-  // Render recorded audio
-  record.on('record-end', (blob) => {
-    // Hide the #mic and remove all its children
-    const micElement = document.querySelector('#mic');
-    if (micElement) {
-      micElement.style.display = 'none';
-      while (micElement.firstChild) {
-      micElement.removeChild(micElement.firstChild);
-      }
+    // Destroy the previous wavesurfer instance
+    if (wavesurferRef.current) {
+      wavesurferRef.current.destroy();
     }
-    const recordingsElement = document.querySelector('#recordings');
-    if (recordingsElement) {
-      recordingsElement.style.display = 'block';
-    }
-    const container = recordingsElement;
-    while (container.firstChild) {
-      container.removeChild(container.firstChild);
-    }
-    const recordedUrl = URL.createObjectURL(blob)
 
-    // Create wavesurfer from the recorded audio
-    const wavesurfer = WaveSurfer.create({
-      container,
+    const mic_container = document.querySelector('#mic');
+    if (!mic_container) return undefined;
+
+    // Create a new Wavesurfer instance
+    wavesurferRef.current = WaveSurfer.create({
+      container: '#mic',
+      cursorWidth: 0,
+      barWidth: 2,
       barGap: 2,
       height: 76,
-      barWidth: 2,
-      cursorWidth: 0,
-      waveColor: 'rgb(200, 100, 0)',
-      progressColor: 'rgb(100, 50, 0)',
-      url: recordedUrl,
-    })
+      waveColor: 'rgb(200, 0, 200)',
+      progressColor: 'rgb(100, 0, 100)',
+    });
 
-    // Create a frame div to hold controls
-    const frame = container.appendChild(document.createElement('div'))
-    frame.className = 'flex items-center space-x-2 mt-2 justify-center'
+    // Initialize the Record plugin
+    recordRef.current = wavesurferRef.current.registerPlugin(
+      RecordPlugin.create({
+        renderRecordedAudio: false,
+        scrollingWaveform,
+        continuousWaveform,
+        continuousWaveformDuration: 30,
+      }),
+    );
 
-    // Play/Pause button with icon (ghost style)
-    const playBtn = document.createElement('button')
-    playBtn.className = 'p-2 flex items-center border rounded bg-white shadow text-gray-700 border-gray-300 hover:border-light-red'
+    // Render recorded audio
+    recordRef.current.on('record-end', (blob) => {
+      // Hide the #mic and remove all its children
+      const micElement = document.querySelector('#mic');
+      if (micElement) {
+        micElement.style.display = 'none';
+        while (micElement.firstChild) {
+          micElement.removeChild(micElement.firstChild);
+        }
+      }
 
-    // Insert icon (initially play icon)
-    playBtn.innerHTML = `
-  ${svgPlayBtn}
-`
+      const recordingsElement = document.querySelector('#recordings');
+      if (recordingsElement) {
+        recordingsElement.style.display = 'block';
+      }
 
-    playBtn.onclick = () => wavesurfer.playPause()
+      const container = recordingsElement;
+      while (container.firstChild) {
+        container.removeChild(container.firstChild);
+      }
 
-    wavesurfer.on('pause', () => {
-      playBtn.innerHTML = `
-      ${svgPlayBtn}
-  `
-    })
+      const recordedUrl = URL.createObjectURL(blob);
 
-    wavesurfer.on('play', () => {
-      playBtn.innerHTML = `
-     ${svgPauseBtn}
-  `
-    })
+      // Create wavesurfer from the recorded audio
+      const wavesurfer = WaveSurfer.create({
+        container,
+        barGap: 2,
+        height: 76,
+        barWidth: 2,
+        cursorWidth: 0,
+        waveColor: 'rgb(200, 100, 0)',
+        progressColor: 'rgb(100, 50, 0)',
+        url: recordedUrl,
+      });
 
-    // Delete button with icon
-    const deleteBtn = document.createElement('button')
-    deleteBtn.className = 'p-2 flex items-center text-bright-red bg-white shadow rounded'
-    deleteBtn.innerHTML = `
-  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-       viewBox="0 0 24 24" stroke="currentColor">
-    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M6 18L18 6M6 6l12 12" />
-  </svg>
-`
-    deleteBtn.onclick = (e) => {
-  console.log("you are trying to delete");
-  e.stopPropagation();
-   // or setSpeakState(() => 0), both fine here
-  // const micElement = document.querySelector('#mic');
-  //   if (micElement) {
-  //     micElement.style.display = 'none';
-  //   }
-  //   const recordingsElement = document.querySelector('#recordings');
-  //   if (recordingsElement) {
-  //     recordingsElement.style.display = 'none';
-  //   }
-    setSpeakState(() => 0)
-};
+      // Create a frame div to hold controls
+      const frame = container.appendChild(document.createElement('div'));
+      frame.className = 'flex items-center space-x-2 mt-2 justify-center';
 
+      // Play/Pause button with icon (ghost style)
+      const playBtn = document.createElement('button');
+      playBtn.className = 'p-2 flex items-center border rounded bg-white shadow text-gray-700 border-gray-300 hover:border-light-red';
+      playBtn.innerHTML = svgPlayBtn;
+      playBtn.onclick = () => wavesurfer.playPause();
 
-    // Append buttons
-    frame.appendChild(deleteBtn)
-    frame.appendChild(playBtn)
+      wavesurfer.on('pause', () => {
+        playBtn.innerHTML = svgPlayBtn;
+      });
 
-    // Submit button remains unchanged
-    const submitBtn = document.createElement('button')
-    submitBtn.className = 'py-2 px-4 w-full md:w-fit rounded  flex items-center justify-center bg-bright-red text-white'
-    submitBtn.innerText = `Submit`
-    submitBtn.onclick = () => {
-      // Clear existing buttons and show loading spinner
-      frame.innerHTML = `
-    <div class="flex justify-center items-center w-full py-4">
-      <svg class="animate-spin h-6 w-6 text-bright-red" xmlns="http://www.w3.org/2000/svg" fill="none"
-           viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10"
-                stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor"
-              d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-      </svg>
-    </div>
-  `;
+      wavesurfer.on('play', () => {
+        playBtn.innerHTML = svgPauseBtn;
+      });
 
-      // Send audio to server
-      const formData = new FormData();
-      formData.append('audio_file', blob, 'recording.webm');
-      setIsWaitingForAudioResponse(true)
-      fetch(`${SERVER_URL}/upload_audio`, {
-        method: 'POST',
-        body: formData,
-      })
-        .then(response => response.json())
-        .then(data => {
-          console.log('Server response:', data);
-          setIsWaitingForAudioResponse(false)
-          setOrders(data.products);
-          if (recordingsElement && recordingsElement.firstChild) {
-            recordingsElement.removeChild(recordingsElement.firstChild);
-          }
-          // Replace spinner with "Click to continue order" button
-          frame.innerHTML = '';
-          const continueBtn = document.createElement('button');
-          continueBtn.className = 'py-2 px-4 w-full md:w-fit rounded border border-medium-red bg-soft-red text-white font-semibold ';
-          continueBtn.innerText = 'Click to continue order';
-          continueBtn.onclick = () => {
-            // Any next step logic here
-            console.log('Continuing order...');
-            setSpeakState(()=>0)
-            
-          };
-          frame.appendChild(continueBtn);
+      // Delete button with icon
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'p-2 flex items-center text-bright-red bg-white shadow rounded';
+      deleteBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+             viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      `;
+
+      // FIX: Use the ref to get the current setSpeakState function
+      deleteBtn.onclick = (e) => {
+        console.log("you are trying to delete");
+        if (container) {
+          container.style.display = 'none';
+        }
+        while (container.firstChild) {
+          container.removeChild(container.firstChild);
+        }
+        e.stopPropagation();
+        // Use the current setSpeakState function from the ref
+        setSpeakStateRef.current(0);
+      };
+
+      // Append buttons
+      frame.appendChild(deleteBtn);
+      frame.appendChild(playBtn);
+
+      // Submit button
+      const submitBtn = document.createElement('button');
+      submitBtn.className = 'py-2 px-4 w-full md:w-fit rounded flex items-center justify-center bg-bright-red text-white';
+      submitBtn.innerText = 'Submit';
+
+      submitBtn.onclick = () => {
+        // Clear existing buttons and show loading spinner
+        frame.innerHTML = `
+          <div class="flex justify-center items-center w-full py-4">
+            <svg class="animate-spin h-6 w-6 text-bright-red" xmlns="http://www.w3.org/2000/svg" fill="none"
+                 viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10"
+                      stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+          </div>
+        `;
+
+        // Send audio to server
+        const formData = new FormData();
+        formData.append('audio_file', blob, 'recording.webm');
+        setIsWaitingForAudioResponse(true);
+
+        fetch(`${SERVER_URL}/upload_audio`, {
+          method: 'POST',
+          body: formData,
         })
-        .catch(error => {
-          setIsWaitingForAudioResponse(false);
-          console.error('Error uploading audio:', error);
-          frame.innerHTML = `<p class="text-red-600">Upload failed. Try again.</p>`;
-        });
-    };
+          .then(response => response.json())
+          .then(data => {
+            console.log('Server response:', data);
+            setIsWaitingForAudioResponse(false);
+            setOrders(data.products);
 
-    frame.appendChild(submitBtn)
+            if (recordingsElement && recordingsElement.firstChild) {
+              recordingsElement.removeChild(recordingsElement.firstChild);
+            }
 
+            // Replace spinner with "Click to continue order" button
+            frame.innerHTML = '';
+            const continueBtn = document.createElement('button');
+            continueBtn.className = 'py-2 px-4 w-full md:w-fit rounded border border-medium-red bg-soft-red text-white font-semibold';
+            continueBtn.innerText = 'Click to continue order';
+            continueBtn.onclick = () => {
+              console.log('Continuing order...');
+              setSpeakStateRef.current(0);
+              if (container) {
+                container.style.display = 'none';
+              }
+              while (container.firstChild) {
+                container.removeChild(container.firstChild);
+              }
+            };
+            frame.appendChild(continueBtn);
+          })
+          .catch(error => {
+            setIsWaitingForAudioResponse(false);
+            console.error('Error uploading audio:', error);
+            frame.innerHTML = `<p class="text-red-600">Upload failed. Try again.</p>`;
+          });
+      };
 
+      frame.appendChild(submitBtn);
+    });
 
-  })
+    return recordRef.current;
+  }, [setOrders, setIsWaitingForAudioResponse]);
 
-
-
-
-  return record
-
-}
-
-
-function AudioFrame({ setOrders , isWaitingForAudioResponse , setIsWaitingForAudioResponse}) {
-  // needs to initiate state of speakings
-  const [speakState, setSpeakState] = useState(0);
-  if (record === undefined) {
-    record = createWaveSurfer({ setOrders , setIsWaitingForAudioResponse,setSpeakState})
-  }
   useEffect(() => {
     console.log('Effect runs after render');
     console.log("element", document.querySelector('#mic'));
-    record = createWaveSurfer({ setOrders , setIsWaitingForAudioResponse,setSpeakState});
-  }, []);
+    createWaveSurfer();
+  }, [createWaveSurfer]);
 
   function handleAudioFrameIsClicked() {
-    // TODO: When deleting making the state to zero
-    // After sending make the state to zero as well
-    // But when already in state done , do not do any thing when click
-    // You can tell the user to send his order
-    console.log("record", record)
-    console.log("state", speakState)
-    // here when click ?
-    //  TODO:when AI is responding you can not cicke too 
+    console.log("record", recordRef.current);
+    console.log("state", speakState);
+
     if (SpeakingStateConts[speakState] === SPEAK_STATE_INITIAL) {
       const micElement = document.querySelector('#mic');
       if (micElement) {
@@ -298,92 +294,94 @@ function AudioFrame({ setOrders , isWaitingForAudioResponse , setIsWaitingForAud
       if (recordingsElement) {
         recordingsElement.style.display = 'none';
       }
-      // Starts the recording process 
-      record.startRecording().then(() => {
-        // recButton.textContent = 'Stop '+deviceId;
-        // recButton.disabled = false
-        // pauseButton.style.display = 'inline'
-      })
+
+      recordRef.current.startRecording().then(() => {
+        // Recording started
+      });
     }
 
     if (SpeakingStateConts[speakState] === SPEAK_STATE_SPEAKING) {
-
-      // then should en records
-      record.stopRecording()
+      recordRef.current.stopRecording();
     }
+
     if (SpeakingStateConts[speakState] === SPEAK_STATE_DONESPEAKING) {
-      // if now i'm waiting for a response nothing should hapen
-      if (isWaitingForAudioResponse)
-        return;
+      if (isWaitingForAudioResponse) return;
       setIsWaitingForAudioResponse(false);
-      // alors 
     }
-    setSpeakState((speakState + 1) % 3)
 
+    setSpeakState((speakState + 1) % 3);
   }
-  // AKA :  record initili
-  return (
 
-    <div className="flex flex-col items-center  mt-24" onClick={handleAudioFrameIsClicked}>
+  return (
+    <div className="flex flex-col items-center mt-24" onClick={handleAudioFrameIsClicked}>
       <div className="relative w-48 h-48">
         {/* Slow pulsing concentric circles */}
-        {
-          SpeakingStateConts[speakState] === SPEAK_STATE_INITIAL &&
+        {SpeakingStateConts[speakState] === SPEAK_STATE_INITIAL && (
+          <>
+            <div className="absolute inset-0 rounded-full bg-medium-red opacity-30 animate-slow-ping" />
+            <div className="absolute inset-2 rounded-full bg-medium-red opacity-20 animate-slow-ping delay-300" />
+            <div className="absolute inset-4 rounded-full bg-medium-red opacity-10 animate-slow-ping delay-400" />
+          </>
+        )}
 
-          (
-            <>
-
-              <div className="absolute inset-0 rounded-full bg-medium-red opacity-30 animate-slow-ping" />
-              <div className="absolute inset-2 rounded-full bg-medium-red opacity-20 animate-slow-ping delay-300" />
-              <div className="absolute inset-4 rounded-full bg-medium-red opacity-10 animate-slow-ping delay-400" />
-
-            </>
-          )
-        }
         {/* Microphone button */}
-        <div className="absolute inset-8 rounded-full bg-medium-red border-4 border-red-400  flex flex-col items-center justify-center shadow-md cursor-pointer">
+        <div className="absolute inset-8 rounded-full bg-medium-red border-4 border-red-400 flex flex-col items-center justify-center shadow-md cursor-pointer">
           <FaMicrophone className="text-2xl text-white" />
           <p className="text-center text-white text-sm mt-1">
-            {
-              SpeakingStateConts[speakState] === SPEAK_STATE_INITIAL ? "Click to Speak" : SpeakingStateConts[speakState] === SPEAK_STATE_SPEAKING ? "You're speaking" : "You can submit your order"
+            {SpeakingStateConts[speakState] === SPEAK_STATE_INITIAL
+              ? "Click to Speak"
+              : SpeakingStateConts[speakState] === SPEAK_STATE_SPEAKING
+                ? "You're speaking"
+                : "You can submit your order"
             }
           </p>
         </div>
-
       </div>
-
 
       <div id="mic" className='w-full md:mx-4'>
 
       </div>
+      <div id="recordings" className='w-full md:w-fit'></div>
 
+      {/* <p>
+       
+        What we hear: {speakState}
+      </p> */}
 
-
-
-      <div id="recordings" className='w-full md:w-fit'>
-
-      </div>
-            <p>
-              this is the : {speakState}
-              </p>
-
-      {
-        SpeakingStateConts[speakState] === SPEAK_STATE_SPEAKING &&
-        <button className="bg-bright-red  hover:bg-red-900 text-white font-bold py-2 px-4 w-full md:w-fit mx-2">
+      {SpeakingStateConts[speakState] === SPEAK_STATE_SPEAKING && (
+        <button className="bg-bright-red hover:bg-red-900 text-white font-bold py-2 px-4 w-full md:w-fit mx-2">
           Stop
         </button>
-      }
+      )}
     </div>
   );
 }
 
+function SpeakBtn({isSpeak}){
+const nav = useNavigate();
+  return (
+     <div className='hidden md:col-span-1 md:block'>
+                  <div
+                    className={`flex items-center py-2 px-2 rounded-lg cursor-pointer mx-2 gap-2 ${isSpeak ? "bg-light-pink" : "border border-light-red "
+                      }`}
+                    onClick={() => nav && nav("/")}
+                  >
+                    <FaMicrophone className={`text-xl ${isSpeak ? "text-medium-red" : "text-soft-red"}`} />
+                    <p className="m-0 text-xs">Speak to order</p>
+                  </div>
+                </div>
+  )
+}
 
 function App() {
   const [selected, setSelected] = useState(0);
   const [orders, setOrders] = useState([]);
-  const [isWaitingForAudioResponse , setIsWaitingForAudioResponse] = useState(true);
+  const [isWaitingForAudioResponse, setIsWaitingForAudioResponse] = useState(true);
   const location = window.location.pathname;
-  const isSpeak = location === "/"
+  const isSpeak = location === "/";
+
+  
+
   return (
     <BrowserRouter>
 
@@ -393,7 +391,7 @@ function App() {
           element={
             <>
               <TopMenu />
-              <div className='grid md:grid-cols-3 lg:grid-cols-[300px_1fr_4fr] lg:gap-x-20 lg:gap-y-4'>
+              <div className='grid md:grid-cols-3 lg:grid-cols-[300px_1fr_4fr] lg:gap-x-12 lg:gap-y-4 md:mx-8'>
                 {/* col 1 */}
                 <div className='hidden md:col-span-1 md:block'>
                   <div
@@ -419,52 +417,40 @@ function App() {
                   </div>
 
                 </div>
-                {/* Medium Size */}
-                <div className='hidden md:col-span-2 md:block'>
-                  <MenuList selected={selected} setSelected={setSelected} />
-                  <div className='md:grid md:grid-cols-5'>
-                    <div className='md:col-span-3 mx-2 border border-red-500'>
-                      <AudioFrame setOrders={setOrders} isWaitingForAudioResponse = {isWaitingForAudioResponse} setIsWaitingForAudioResponse={setIsWaitingForAudioResponse}/>
-                    </div>
-                     
-                    {orders && orders.length !== 0 ? (
-                      <div className="bg-small-gray mx-0 md:col-span-2">
-                        <div className="mx-2">
-                          <OrderDetails setOrders={setOrders} orders={orders} />
-                          <OrderOverall orders={orders} />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className='md:col-span-2'>
- <NoOrderMessage />
-                      </div>
-                     
-                    )}
-
+                <div className='md:col-span-2'>
+                  {/* Menu - responsive positioning */}
+                  <div className='md:col-span-2'>
+                    <MenuList selected={selected} setSelected={setSelected} />
                   </div>
 
+                  {/* Main content grid */}
+                  <div className='md:grid md:grid-cols-5 md:col-span-2'>
+                    {/* Audio Section */}
+                    <div className='md:col-span-3 mx-2 mt-4 mb-4 md:mb-0 border border-red-500 pb-4 rounded-xl flex flex-col justify-center items-center md:block'>
+                      <AudioFrame
+                        setOrders={setOrders}
+                        isWaitingForAudioResponse={isWaitingForAudioResponse}
+                        setIsWaitingForAudioResponse={setIsWaitingForAudioResponse}
+                      />
+                    </div>
+
+                    {/* Orders Section */}
+                    <div className='md:col-span-2 mb-8 md:mb-0'>
+                      {orders && orders.length !== 0 ? (
+                        <div className="bg-small-gray mx-0">
+                          <div className="mx-2">
+                            <OrderDetails setOrders={setOrders} orders={orders} />
+                            <OrderOverall orders={orders} />
+                          </div>
+                        </div>
+                      ) : (
+                        <NoOrderMessage />
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className='md:hidden'>
-                <MenuList selected={selected} setSelected={setSelected} />
-              </div>
 
-              <div className="md:hidden flex flex-col justify-center items-center mx-2">
-                <AudioFrame setOrders={setOrders} />
-              </div>
-                    <div className='md:hidden'>
-  {orders && orders.length !== 0 ? (
-                      <div className="bg-small-gray mx-0 md:col-span-2">
-                        <div className="mx-2">
-                          <OrderDetails setOrders={setOrders} orders={orders} />
-                          <OrderOverall orders={orders} />
-                        </div>
-                      </div>
-                    ) : (
-                      <NoOrderMessage />
-                    )}
-                    </div>
-           
             </>
           }
         />
@@ -473,18 +459,9 @@ function App() {
           element={
             <>
               <TopMenu />
-              <div className='grid md:grid-cols-3 lg:grid-cols-[300px_1fr_4fr] lg:gap-x-20 lg:gap-y-4'>
+              <div className='grid md:grid-cols-3 lg:grid-cols-[300px_1fr_4fr] lg:gap-x-20  lg:gap-y-4 md:mx-8'>
                 {/* col 1 */}
-                <div className='hidden md:col-span-1 md:block'>
-                  <div
-                    className={`flex items-center py-2 px-2 rounded-lg cursor-pointer mx-2 gap-2 ${isSpeak ? "bg-light-pink" : "border border-light-red "
-                      }`}
-                    onClick={() => nav && nav("/")}
-                  >
-                    <FaMicrophone className={`text-xl ${isSpeak ? "text-medium-red" : "text-soft-red"}`} />
-                    <p className="m-0 text-xs">Speak to order</p>
-                  </div>
-                </div>
+                <SpeakBtn isSpeak={isSpeak}/>
                 {/* col 2 to 3 */}
 
                 <div className='md:col-span-2 '>

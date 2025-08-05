@@ -56,6 +56,7 @@ export default function Thanks() {
             setError("Please leave feedback before submitting.");
             return;
         }
+        sendSubmitDetails();
         setError("");
         
     };

@@ -1,11 +1,13 @@
 import React from "react";
+
 import { MdLocationOn } from "react-icons/md";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const TopMenu = () => {
      const nav = useNavigate();
     return (
-        <div className="relative ">
+        <div className="relative md:mx-8">
             {/* Background rectangle */}
             <div
                 className="absolute flex justify-end items-end"
@@ -24,13 +26,14 @@ const TopMenu = () => {
      
 
             <div className="relative flex items-center justify-between py-2 bg-white mb-2 z-10 ">
-                <div className="hidden md:block">
+                <div className="hidden md:flex">
                     <h1
                         className="text-bright-red mx-2 text-bold text-lg cursor-pointer"
                         onClick={() => nav("/")}
                     >
                         Food Runs
                     </h1>
+                  
                 </div>
                 {/* Hamburger */}
                 <button className="p-2 rounded-md hover:bg-gray-100  md:hidden">
@@ -44,8 +47,18 @@ const TopMenu = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
-                    <div className="hidden md:flex gap-2">
+
+             <Link to="/home" className="hidden md:block hover:text-red-300">
+  Click here to see all the menu!
+</Link>
+
+
+                    <div className="hidden md:flex ">
                                 {/* Localisation Icon */}
+                          
+                               
+
+                    
                             <div className="flex-1 flex justify-center items-center">
                                 <span className="w-7 h-7 text-red-600 flex items-center justify-center">
                                     <MdLocationOn className="w-7 h-7 text-medium-red" />

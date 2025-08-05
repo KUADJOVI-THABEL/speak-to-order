@@ -17,6 +17,8 @@ from dotenv import load_dotenv
 
 from get_order_from_transcript import get_products_from_transcript
 from queries_foods import find_product_by_name_like, parse_fetch_to_json
+import boto3
+import json
 
 # Load environment variables
 load_dotenv()
@@ -241,7 +243,16 @@ def seed_products():
     Seeds the database with initial product data.
     """
     try:
-        seed_products_db(json_path="all_products.json", db_path=DB_PATH)
+        # Download all_products.json from S3 and seed the database
+
+        s3_bucket = "products-bucket"  # Replace with your S3 bucket name
+        s3_key = "all_products.json"
+        local_json_path = "/tmp/all_products.json"
+
+        s3 = boto3.client("s3")
+        s3.download_file(s3_bucket, s3_key, local_json_path)
+
+        seed_products_db(json_path=local_json_path, db_path=DB_PATH)
         return jsonify({"message": "Database seeded successfully"}), 200
     except Exception as e:
         app.logger.error(f"Error seeding products: {e}", exc_info=True)

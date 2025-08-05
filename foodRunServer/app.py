@@ -9,7 +9,7 @@ import sqlite3
 from flask import Flask, request, render_template, jsonify
 from werkzeug.utils import secure_filename
 from flask_cors import CORS  # <-- Add this import
-
+from seeding import seed_products_db
 # import requests
 import requests
 from elevenlabs.client import ElevenLabs
@@ -41,7 +41,7 @@ DB_PATH = os.getenv('DATABASE_PATH', 'products.db')
 
 @app.route("/")
 def index():
-    print(f"API Key: {elevenlabs.api_key}")  # For debugging purposes, remove in production
+    # For debugging purposes, remove in production
     return "<p>Hello, World!</p>"
 
 
@@ -234,3 +234,15 @@ def ping():
     Simple endpoint to check if the server is running.
     """
     return jsonify({"status": "ok"}), 200
+
+@app.route("/seed_products", methods=["GET"])
+def seed_products():
+    """
+    Seeds the database with initial product data.
+    """
+    try:
+        seed_products_db(json_path="all_products.json", db_path=DB_PATH)
+        return jsonify({"message": "Database seeded successfully"}), 200
+    except Exception as e:
+        app.logger.error(f"Error seeding products: {e}", exc_info=True)
+        return jsonify({"error": f"Error seeding products: {str(e)}"}), 500

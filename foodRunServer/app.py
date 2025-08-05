@@ -3,7 +3,7 @@ import time
 import os
 from dotenv import load_dotenv
 from io import BytesIO
-import os
+import tempfile
 import google.generativeai as genai
 import sqlite3
 from flask import Flask, request, render_template, jsonify
@@ -11,17 +11,32 @@ from werkzeug.utils import secure_filename
 from flask_cors import CORS  # <-- Add this import
 
 # import requests
+import requests
 from elevenlabs.client import ElevenLabs
 from dotenv import load_dotenv
 
 from get_order_from_transcript import get_products_from_transcript
 from queries_foods import find_product_by_name_like, parse_fetch_to_json
+
+# Load environment variables
 load_dotenv()
+
+# Lambda-specific configurations
+IS_LAMBDA = os.environ.get('AWS_LAMBDA_FUNCTION_NAME') is not None
 elevenlabs = ElevenLabs(
   api_key=os.getenv("ELEVENLABS_API_KEY"),
 )
 app = Flask(__name__)
 CORS(app)  # <-- Enable CORS for all routes
+
+# Lambda-compatible upload folder
+if IS_LAMBDA:
+    UPLOAD_FOLDER = '/tmp'  # Lambda's writable temporary directory
+else:
+    UPLOAD_FOLDER = 'uploads'
+    
+# Database path - use environment variable or default
+DB_PATH = os.getenv('DATABASE_PATH', 'products.db')
 
 
 @app.route("/")
@@ -50,14 +65,14 @@ def transcribe_audio():
 
 
 # --- Configuration ---
-UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'mp3', 'wav', 'aac', 'flac', 'ogg', 'webm'} # Gemini supports various audio formats
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Limit file size to 20MB (approx) as a common inline upload limit for Gemini
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024
 
-# Create the upload folder if it doesn't exist
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Create the upload folder if it doesn't exist (only for local development)
+if not IS_LAMBDA:
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Configure Gemini API
 # It's highly recommended to use environment variables for API keys in production
@@ -107,9 +122,18 @@ def upload_audio():
     try:
         if file and allowed_file(file.filename):
             app.logger.info("Received file: %s", file)
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
+            
+            # Use temporary file for Lambda compatibility
+            if IS_LAMBDA:
+                # Create temporary file in Lambda's /tmp directory
+                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.rsplit('.', 1)[1].lower()}", dir='/tmp') as temp_file:
+                    file.save(temp_file.name)
+                    filepath = temp_file.name
+            else:
+                filename = secure_filename(file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                
             app.logger.info("Saved local file: %s", filepath)
             
             transcription = elevenlabs.speech_to_text.convert(
@@ -157,7 +181,7 @@ def search_products():
         return jsonify({"error": "Invalid request, 'name' field is required"}), 400
 
     name = data['name']
-    conn = sqlite3.connect('products.db')
+    conn = sqlite3.connect(DB_PATH)
     
     try:
         results = find_product_by_name_like(conn, name)
@@ -179,7 +203,7 @@ def submit_feedback():
     if not data or 'ip' not in data or 'rating' not in data or 'comment' not in data:
         return jsonify({"error": "Missing required fields: ip, rating, comment"}), 400
 
-    conn = sqlite3.connect('products.db')
+    conn = sqlite3.connect(DB_PATH)
     try:
         # Create table if it doesn't exist
         conn.execute("""
@@ -203,3 +227,10 @@ def submit_feedback():
         return jsonify({"error": f"Error submitting feedback: {str(e)}"}), 500
     finally:
         conn.close()
+
+@app.route("/ping")
+def ping():
+    """
+    Simple endpoint to check if the server is running.
+    """
+    return jsonify({"status": "ok"}), 200

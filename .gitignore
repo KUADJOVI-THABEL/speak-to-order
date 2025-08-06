@@ -1,8 +1,10 @@
 ideas*
 venv
+.venv
 .env
 __pycache__/
 node_modules
 all_products.json
 *.db
 products.json
+cdk.out/

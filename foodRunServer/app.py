@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from io import BytesIO
 import tempfile
-import google.generativeai as genai
+
 import sqlite3
 from flask import Flask, request, render_template, jsonify
 from werkzeug.utils import secure_filename
@@ -82,14 +82,6 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY not set. Please set it as an environment variable or in a .env file.")
 
-genai.configure(api_key=GEMINI_API_KEY)
-
-# Initialize the Gemini model for multimodal input
-# Use a model that supports audio input, e.g., 'gemini-pro-vision' or newer multimodal models
-# Refer to Google AI Studio documentation for the latest recommended models for audio.
-# For audio, 'gemini-1.5-flash' or 'gemini-1.5-pro' are good choices.
-# We'll use 'gemini-1.5-flash' for this example.
-model = genai.GenerativeModel('gemini-1.5-flash')
 
 
 def allowed_file(filename):
@@ -162,14 +154,7 @@ def upload_audio():
             except OSError as e:
                 app.logger.warning(f"Error deleting local file {filepath}: {e}")
         
-        # Delete the file from Gemini's storage
-        if audio_file_part and audio_file_part.name:
-            try:
-                genai.delete_file(audio_file_part.name)
-                app.logger.info(f"Deleted Gemini file: {audio_file_part.name}")
-            except Exception as e:
-                # Log a warning if Gemini file deletion fails, but don't block the response
-                app.logger.warning(f"Failed to delete Gemini file {audio_file_part.name}: {e}")
+       
 
 
 @app.route('/search', methods=['POST'])

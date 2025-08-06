@@ -2,8 +2,6 @@ import random
 import spacy
 import sqlite3
 from sentence_transformers import SentenceTransformer, util
-import spacy
-from sentence_transformers import SentenceTransformer, util
 
 from word2number import w2n  # to convert "two" → 2
 
